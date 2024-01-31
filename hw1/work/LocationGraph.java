@@ -49,7 +49,7 @@ class LocationGraph {
             int numLocs = Integer.parseInt(scanner.nextLine());
             // store all locations as nodes in a name-to-node map.
             Map<String, GraphNode> graphNodeMap = new HashMap<>();
-            Map<String, Set<Integer>> neighborMomentum = new HashMap<>();
+            // Map<String, Set<Integer>> neighborMomentum = new HashMap<>();
             for (int i = 0; i < numLocs; i++) {
                 String[] elements = scanner.nextLine().split(" ");
                 assert elements.length == 4;
@@ -59,7 +59,7 @@ class LocationGraph {
                 int z = Integer.parseInt(elements[3]);
                 GraphNode node = new GraphNode(name, x, y, z);
                 graphNodeMap.put(name, node);
-                neighborMomentum.put(name, new HashSet<>());
+                // neighborMomentum.put(name, new HashSet<>());
                 if (name.equals("start")) start = node;
                 if (name.equals("goal")) goal = node;
             }
@@ -72,17 +72,17 @@ class LocationGraph {
                 GraphNode node0 = graphNodeMap.get(nodePair[0]), node1 = graphNodeMap.get(nodePair[1]);
                 node0.neighbors.add(node1);
                 node1.neighbors.add(node0);
-                int z0 = node0.z, z1 = node1.z;
-                neighborMomentum.get(nodePair[0]).add(Math.max(0, z1-z0-uphillEnergy));
-                neighborMomentum.get(nodePair[1]).add(Math.max(0, z0-z1-uphillEnergy));
+                // int z0 = node0.z, z1 = node1.z;
+                // neighborMomentum.get(nodePair[0]).add(Math.max(0, z1-z0-uphillEnergy));
+                // neighborMomentum.get(nodePair[1]).add(Math.max(0, z0-z1-uphillEnergy));
             }
             scanner.close();
 
-            for (String nodeName : neighborMomentum.keySet()) {
-                neighborMomentum.get(nodeName).add(Integer.MAX_VALUE);
-                graphNodeMap.get(nodeName).sortedMomentum = neighborMomentum.get(nodeName).toArray(Integer[]::new);
-                Arrays.sort(graphNodeMap.get(nodeName).sortedMomentum);
-            }
+            // for (String nodeName : neighborMomentum.keySet()) {
+            //     neighborMomentum.get(nodeName).add(Integer.MAX_VALUE);
+            //     graphNodeMap.get(nodeName).sortedMomentum = neighborMomentum.get(nodeName).toArray(Integer[]::new);
+            //     Arrays.sort(graphNodeMap.get(nodeName).sortedMomentum);
+            // }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -100,9 +100,9 @@ class LocationGraph {
             writer.write(res + "\n");
             writer.close();
 
-            writer = new FileWriter("./pathlen.txt");
-            writer.write(String.valueOf(path.size()-1));
-            writer.close();
+            // writer = new FileWriter("./pathlen.txt");
+            // writer.write(String.valueOf(path.size()-1));
+            // writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -288,7 +288,7 @@ class GraphNode {
     public String name;
     public int x, y, z;
     public Set<GraphNode> neighbors;
-    public Integer[] sortedMomentum;
+    // public Integer[] sortedMomentum;
 
     public GraphNode(String name, int x, int y, int z) {
         this.name = name;
@@ -304,15 +304,16 @@ class GraphNode {
 
     // discretize the 'continous' momentum based on its accessible neighbors
     public int getMomentumState(int momentum) {
-        int l = 0, r = sortedMomentum.length - 2;
-        while (l <= r) {
-            int m = (l + r) >> 1;
-            if (momentum >= sortedMomentum[m+1]) l = m+1;
-            else if (momentum < sortedMomentum[m]) r = m-1;
-            else return m;
-        }
+        return momentum;
+        // int l = 0, r = sortedMomentum.length - 2;
+        // while (l <= r) {
+        //     int m = (l + r) >> 1;
+        //     if (momentum >= sortedMomentum[m+1]) l = m+1;
+        //     else if (momentum < sortedMomentum[m]) r = m-1;
+        //     else return m;
+        // }
 
-        return -1;
+        // return -1;
     }
 
     public String toString() {
