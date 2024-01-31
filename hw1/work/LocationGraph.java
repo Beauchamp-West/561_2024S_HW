@@ -12,7 +12,7 @@ import java.io.*;
 class LocationGraph {
     private String algoName;
     private int uphillEnergy;
-    private GraphNode start;
+    private GraphNode start, goal;
 
     public LocationGraph(String inputPath) {
         // initialize the graph.
@@ -61,6 +61,7 @@ class LocationGraph {
                 graphNodeMap.put(name, node);
                 neighborMomentum.put(name, new HashSet<>());
                 if (name.equals("start")) start = node;
+                if (name.equals("goal")) goal = node;
             }
 
             int numPathes = Integer.parseInt(scanner.nextLine());
@@ -168,7 +169,7 @@ class LocationGraph {
                 if (!curr.isValidChild(neighbor, uphillEnergy)) continue;
 
                 int mo = Math.max(0, state.z - neighbor.z);
-                momentState = neighbor.getMomentumState(mo);
+                int neighborMomentState = neighbor.getMomentumState(mo);
                 int sx = state.x, sy = state.y, nx = neighbor.x, ny = neighbor.y;
                 double cost = Math.sqrt(Math.pow(sx-nx, 2) + Math.pow(sy-ny, 2));
                 UCSNode child = new UCSNode(neighbor, curr, mo, cost);
@@ -178,40 +179,108 @@ class LocationGraph {
                     openMap = new HashMap<>();
                     open.put(neighbor.name, openMap);
                 }
-                UCSNode openNode = openMap.get(momentState);
+                UCSNode openNode = openMap.get(neighborMomentState);
                 Map<Integer, UCSNode> closedMap = closed.get(neighbor.name);
                 if (closedMap == null) {
                     closedMap = new HashMap<>();
                     closed.put(neighbor.name, closedMap);
                 }
-                UCSNode closedNode = closedMap.get(momentState);
+                UCSNode closedNode = closedMap.get(neighborMomentState);
                 
                 if (openNode == null && closedNode == null) {
                     pq.offer(child);
-                    openMap.put(momentState, child);
+                    openMap.put(neighborMomentState, child);
                 } else if (openNode != null) {
                     if (child.cost < openNode.cost) {
                         pq.remove(openNode);
                         pq.offer(child);
-                        openMap.put(momentState, child);
+                        openMap.put(neighborMomentState, child);
                     }
                 } else if (child.cost < closedNode.cost) {
-                    closedMap.put(momentState, child);
+                    closedMap.remove(neighborMomentState);
                     pq.offer(child);
+                    openMap.put(neighborMomentState, child);
                 }
             }
+
+            Map<Integer, UCSNode> currClosedMap = closed.get(state.name);
+            if (currClosedMap == null) {
+                currClosedMap = new HashMap<>();
+                closed.put(state.name, currClosedMap);
+            }
+            currClosedMap.put(momentState, curr);
         }
 
         return new ArrayList<>();
     }
 
     private List<String> aPrime() {
-        List<String> res = new ArrayList<>();
-        Queue<GraphNode> queue = new LinkedList<>();
-        queue.offer(start);
+        // name -> {momentumState -> node}
+        Map<String, Map<Integer, APNode>> open = new HashMap<>();
+        Map<String, Map<Integer, APNode>> closed = new HashMap<>();
+        APNode init = new APNode(start, goal);
+        Map<Integer, APNode> map = new HashMap<>();
+        map.put(start.getMomentumState(0), init);
+        open.put(start.name, map);
+        PriorityQueue<APNode> pq = new PriorityQueue<>((a, b) -> Double.compare(a.cost+a.heuristic, b.cost+b.heuristic));
+        
+        pq.offer(init);
 
+        while (!pq.isEmpty()) {
+            APNode curr = pq.poll();
+            GraphNode state = curr.state;
+            if (state.isGoal()) return curr.path();
+            int momentState = state.getMomentumState(curr.momentum);
+            open.get(state.name).remove(momentState);
 
-        return res;
+            for (GraphNode neighbor : state.neighbors) {
+                // ignore the neighbor without sufficient energy to access
+                if (!curr.isValidChild(neighbor, uphillEnergy)) continue;
+
+                int mo = Math.max(0, state.z - neighbor.z);
+                int neighborMomentState = neighbor.getMomentumState(mo);
+                int sx = state.x, sy = state.y, sz = state.z, nx = neighbor.x, ny = neighbor.y, nz = neighbor.z;
+                double cost = Math.sqrt(Math.pow(sx-nx, 2) + Math.pow(sy-ny, 2) + Math.pow(sz-nz, 2));
+                APNode child = new APNode(neighbor, curr, mo, cost, goal);
+
+                Map<Integer, APNode> openMap = open.get(neighbor.name);
+                if (openMap == null) {
+                    openMap = new HashMap<>();
+                    open.put(neighbor.name, openMap);
+                }
+                APNode openNode = openMap.get(neighborMomentState);
+                Map<Integer, APNode> closedMap = closed.get(neighbor.name);
+                if (closedMap == null) {
+                    closedMap = new HashMap<>();
+                    closed.put(neighbor.name, closedMap);
+                }
+                APNode closedNode = closedMap.get(neighborMomentState);
+                
+                if (openNode == null && closedNode == null) {
+                    pq.offer(child);
+                    openMap.put(neighborMomentState, child);
+                } else if (openNode != null) {
+                    if (child.cost < openNode.cost) {
+                        pq.remove(openNode);
+                        pq.offer(child);
+                        openMap.put(neighborMomentState, child);
+                    }
+                } else if (child.cost < closedNode.cost) {
+                    closedMap.remove(neighborMomentState);
+                    pq.offer(child);
+                    openMap.put(neighborMomentState, child);
+                }
+            }
+
+            Map<Integer, APNode> currClosedMap = closed.get(state.name);
+            if (currClosedMap == null) {
+                currClosedMap = new HashMap<>();
+                closed.put(state.name, currClosedMap);
+            }
+            currClosedMap.put(momentState, curr);
+        }
+
+        return new ArrayList<>();
     }  
 }
 
@@ -304,5 +373,20 @@ class UCSNode extends SearchNode {
         super(state, parent, momentum);
         this.cost = parent.cost + cost;
     }
-    
+}
+
+class APNode extends UCSNode {
+    public double heuristic;
+
+    public APNode(GraphNode state, GraphNode goal) {
+        super(state);
+        int sx = state.x, sy = state.y, sz = state.z, gx = goal.x, gy = goal.y, gz = goal.z;
+        heuristic = Math.sqrt(Math.pow(sx-gx, 2) + Math.pow(sy-gy, 2) + Math.pow(sz-gz, 2));
+    }
+
+    public APNode(GraphNode state, UCSNode parent, int momentum, double cost, GraphNode goal) {
+        super(state, parent, momentum, cost);
+        int sx = state.x, sy = state.y, sz = state.z, gx = goal.x, gy = goal.y, gz = goal.z;
+        heuristic = Math.sqrt(Math.pow(sx-gx, 2) + Math.pow(sy-gy, 2) + Math.pow(sz-gz, 2));
+    }
 }
