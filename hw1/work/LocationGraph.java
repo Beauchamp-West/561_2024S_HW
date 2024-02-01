@@ -17,8 +17,6 @@ class LocationGraph {
     public LocationGraph(String inputPath) {
         // initialize the graph.
         createGraphFromInput(inputPath);
-        // System.out.println(start);
-        // System.out.println(goal);
     }
 
     public void solve() {
@@ -49,7 +47,6 @@ class LocationGraph {
             int numLocs = Integer.parseInt(scanner.nextLine());
             // store all locations as nodes in a name-to-node map.
             Map<String, GraphNode> graphNodeMap = new HashMap<>();
-            // Map<String, Set<Integer>> neighborMomentum = new HashMap<>();
             for (int i = 0; i < numLocs; i++) {
                 String[] elements = scanner.nextLine().split(" ");
                 assert elements.length == 4;
@@ -59,7 +56,6 @@ class LocationGraph {
                 int z = Integer.parseInt(elements[3]);
                 GraphNode node = new GraphNode(name, x, y, z);
                 graphNodeMap.put(name, node);
-                // neighborMomentum.put(name, new HashSet<>());
                 if (name.equals("start")) start = node;
                 if (name.equals("goal")) goal = node;
             }
@@ -72,17 +68,9 @@ class LocationGraph {
                 GraphNode node0 = graphNodeMap.get(nodePair[0]), node1 = graphNodeMap.get(nodePair[1]);
                 node0.neighbors.add(node1);
                 node1.neighbors.add(node0);
-                // int z0 = node0.z, z1 = node1.z;
-                // neighborMomentum.get(nodePair[0]).add(Math.max(0, z1-z0-uphillEnergy));
-                // neighborMomentum.get(nodePair[1]).add(Math.max(0, z0-z1-uphillEnergy));
             }
-            scanner.close();
 
-            // for (String nodeName : neighborMomentum.keySet()) {
-            //     neighborMomentum.get(nodeName).add(Integer.MAX_VALUE);
-            //     graphNodeMap.get(nodeName).sortedMomentum = neighborMomentum.get(nodeName).toArray(Integer[]::new);
-            //     Arrays.sort(graphNodeMap.get(nodeName).sortedMomentum);
-            // }
+            scanner.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -109,7 +97,7 @@ class LocationGraph {
     }
 
     private List<String> bfs() {
-        // location -> momentum-based partition
+        // location -> momentums
         Map<String, Set<Integer>> visited = new HashMap<>();
         Set<Integer> set = new HashSet<>();
         set.add(0);
@@ -131,13 +119,12 @@ class LocationGraph {
 
                 // ignore the neighbor with the same momentum partition visited before
                 Set<Integer> momentums = visited.get(neighbor.name);
-                int momentState = neighbor.getMomentumState(mo);
-                if (momentums != null && momentums.contains(momentState)) continue;
+                if (momentums != null && momentums.contains(mo)) continue;
                 else if (momentums == null) {
                     momentums = new HashSet<>();
                     visited.put(neighbor.name, momentums);
                 }
-                momentums.add(momentState);
+                momentums.add(mo);
                 queue.offer(child);
             }
         }
@@ -151,7 +138,7 @@ class LocationGraph {
         Map<String, Map<Integer, UCSNode>> closed = new HashMap<>();
         UCSNode init = new UCSNode(start);
         Map<Integer, UCSNode> map = new HashMap<>();
-        map.put(start.getMomentumState(0), init);
+        map.put(0, init);
         open.put(start.name, map);
         PriorityQueue<UCSNode> pq = new PriorityQueue<>((a, b) -> Double.compare(a.cost, b.cost));
         
@@ -161,15 +148,13 @@ class LocationGraph {
             UCSNode curr = pq.poll();
             GraphNode state = curr.state;
             if (state.isGoal()) return curr.path();
-            int momentState = state.getMomentumState(curr.momentum);
-            open.get(state.name).remove(momentState);
+            open.get(state.name).remove(curr.momentum);
 
             for (GraphNode neighbor : state.neighbors) {
                 // ignore the neighbor without sufficient energy to access
                 if (!curr.isValidChild(neighbor, uphillEnergy)) continue;
 
                 int mo = Math.max(0, state.z - neighbor.z);
-                int neighborMomentState = neighbor.getMomentumState(mo);
                 int sx = state.x, sy = state.y, nx = neighbor.x, ny = neighbor.y;
                 double cost = Math.sqrt(Math.pow(sx-nx, 2) + Math.pow(sy-ny, 2));
                 UCSNode child = new UCSNode(neighbor, curr, mo, cost);
@@ -179,27 +164,27 @@ class LocationGraph {
                     openMap = new HashMap<>();
                     open.put(neighbor.name, openMap);
                 }
-                UCSNode openNode = openMap.get(neighborMomentState);
+                UCSNode openNode = openMap.get(mo);
                 Map<Integer, UCSNode> closedMap = closed.get(neighbor.name);
                 if (closedMap == null) {
                     closedMap = new HashMap<>();
                     closed.put(neighbor.name, closedMap);
                 }
-                UCSNode closedNode = closedMap.get(neighborMomentState);
+                UCSNode closedNode = closedMap.get(mo);
                 
                 if (openNode == null && closedNode == null) {
                     pq.offer(child);
-                    openMap.put(neighborMomentState, child);
+                    openMap.put(mo, child);
                 } else if (openNode != null) {
                     if (child.cost < openNode.cost) {
                         pq.remove(openNode);
                         pq.offer(child);
-                        openMap.put(neighborMomentState, child);
+                        openMap.put(mo, child);
                     }
                 } else if (child.cost < closedNode.cost) {
-                    closedMap.remove(neighborMomentState);
+                    closedMap.remove(mo);
                     pq.offer(child);
-                    openMap.put(neighborMomentState, child);
+                    openMap.put(mo, child);
                 }
             }
 
@@ -208,7 +193,7 @@ class LocationGraph {
                 currClosedMap = new HashMap<>();
                 closed.put(state.name, currClosedMap);
             }
-            currClosedMap.put(momentState, curr);
+            currClosedMap.put(curr.momentum, curr);
         }
 
         return new ArrayList<>();
@@ -220,7 +205,7 @@ class LocationGraph {
         Map<String, Map<Integer, APNode>> closed = new HashMap<>();
         APNode init = new APNode(start, goal);
         Map<Integer, APNode> map = new HashMap<>();
-        map.put(start.getMomentumState(0), init);
+        map.put(0, init);
         open.put(start.name, map);
         PriorityQueue<APNode> pq = new PriorityQueue<>((a, b) -> Double.compare(a.cost+a.heuristic, b.cost+b.heuristic));
         
@@ -230,15 +215,13 @@ class LocationGraph {
             APNode curr = pq.poll();
             GraphNode state = curr.state;
             if (state.isGoal()) return curr.path();
-            int momentState = state.getMomentumState(curr.momentum);
-            open.get(state.name).remove(momentState);
+            open.get(state.name).remove(curr.momentum);
 
             for (GraphNode neighbor : state.neighbors) {
                 // ignore the neighbor without sufficient energy to access
                 if (!curr.isValidChild(neighbor, uphillEnergy)) continue;
 
                 int mo = Math.max(0, state.z - neighbor.z);
-                int neighborMomentState = neighbor.getMomentumState(mo);
                 int sx = state.x, sy = state.y, sz = state.z, nx = neighbor.x, ny = neighbor.y, nz = neighbor.z;
                 double cost = Math.sqrt(Math.pow(sx-nx, 2) + Math.pow(sy-ny, 2) + Math.pow(sz-nz, 2));
                 APNode child = new APNode(neighbor, curr, mo, cost, goal);
@@ -248,27 +231,27 @@ class LocationGraph {
                     openMap = new HashMap<>();
                     open.put(neighbor.name, openMap);
                 }
-                APNode openNode = openMap.get(neighborMomentState);
+                APNode openNode = openMap.get(mo);
                 Map<Integer, APNode> closedMap = closed.get(neighbor.name);
                 if (closedMap == null) {
                     closedMap = new HashMap<>();
                     closed.put(neighbor.name, closedMap);
                 }
-                APNode closedNode = closedMap.get(neighborMomentState);
+                APNode closedNode = closedMap.get(mo);
                 
                 if (openNode == null && closedNode == null) {
                     pq.offer(child);
-                    openMap.put(neighborMomentState, child);
+                    openMap.put(mo, child);
                 } else if (openNode != null) {
                     if (child.cost < openNode.cost) {
                         pq.remove(openNode);
                         pq.offer(child);
-                        openMap.put(neighborMomentState, child);
+                        openMap.put(mo, child);
                     }
                 } else if (child.cost < closedNode.cost) {
-                    closedMap.remove(neighborMomentState);
+                    closedMap.remove(mo);
                     pq.offer(child);
-                    openMap.put(neighborMomentState, child);
+                    openMap.put(mo, child);
                 }
             }
 
@@ -277,7 +260,7 @@ class LocationGraph {
                 currClosedMap = new HashMap<>();
                 closed.put(state.name, currClosedMap);
             }
-            currClosedMap.put(momentState, curr);
+            currClosedMap.put(curr.momentum, curr);
         }
 
         return new ArrayList<>();
@@ -300,20 +283,6 @@ class GraphNode {
 
     public boolean isGoal() {
         return name.equals("goal");
-    }
-
-    // discretize the 'continous' momentum based on its accessible neighbors
-    public int getMomentumState(int momentum) {
-        return momentum;
-        // int l = 0, r = sortedMomentum.length - 2;
-        // while (l <= r) {
-        //     int m = (l + r) >> 1;
-        //     if (momentum >= sortedMomentum[m+1]) l = m+1;
-        //     else if (momentum < sortedMomentum[m]) r = m-1;
-        //     else return m;
-        // }
-
-        // return -1;
     }
 
     public String toString() {
