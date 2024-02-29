@@ -14,7 +14,6 @@ class Game {
     private char[][] board;
     private char player;
     private int limit;
-    private int maxLevel = 6;
     private double time_mine, time_op;
     public String calibratePath = "calibration.txt";
 
@@ -27,11 +26,6 @@ class Game {
 //        System.out.println(limit);
     }
 
-    public Game(char[][] board, char player, int maxLevel) {
-        this.board = board;
-        this.player = player;
-        this.maxLevel = maxLevel;
-    }
 
     public void solve(String outputPath){
         int move = limit > 0 ? alphaBetaMove(limit) : randomMove();
@@ -40,18 +34,11 @@ class Game {
         output(move_str, outputPath);
     }
 
-    public void solveTimer() {
-        StringBuilder s = new StringBuilder();
-        for (int i = maxLevel; i >= 1; i--) {
-            long start = System.currentTimeMillis();
-
-            alphaBetaMove(i);
-
-            long end = System.currentTimeMillis();
-            s.append((end - start) / 1000d).append("\n");
-        }
-
-        output(s.toString(), calibratePath);
+    public void solveTimer(int maxLevel) {
+        int move = alphaBetaMove(maxLevel);
+        int row = move / 12, col = move % 12;
+        String move_str = (char)('a'+col) + String.valueOf(1+row);
+        output(move_str, "timerTest.txt");
     }
 
     private int randomMove(){
@@ -198,6 +185,7 @@ class Game {
     private int eval(char[][] board, char currPlayer, Map<Integer, List<Integer>> currMovesAndFlips) {
         int[] scores = getScore(board);
         int playerScore = scores[0], opScore = scores[1];
+
         return playerScore - opScore;
 //        // game over
 //        char nextPlayer = currPlayer == 'O' ? 'X' : 'O';
