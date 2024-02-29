@@ -18,7 +18,7 @@ class Game {
     public String calibratePath = "calibration.txt";
 
     private static final int[][] directions = new int[][] {{0,1}, {1,1}, {1,0}, {1,-1}, {0,-1}, {-1,-1}, {-1,0}, {-1,1}};
-    private static final double[] searchTimes = new double[] {0.937, 0.143, 0.024, 0.004, 0.0, 0.0};
+    private static final double[] searchTimes = new double[] {0.469, 0.129, 0.043, 0.027, 0.022, 0.019, 0.019};
 
     public Game(String inputPath) {
         restoreGameStateFromInput(inputPath);
@@ -47,56 +47,107 @@ class Game {
     }
 
     private int alphaBetaMove(int levelLimit){
-        int[] valueAndMove = maxValue(board, player, Integer.MIN_VALUE, Integer.MAX_VALUE, 0, levelLimit);
-        return valueAndMove[1];
+        Map<Integer, List<Integer>> initMovesAndFlips = getLegalMovesAndFlips(board, player);
+        Number[] valueAndMove = maxValue(board, player, initMovesAndFlips, -1d, 2d, 0, levelLimit);
+        return (int) valueAndMove[1];
     }
 
-    private int[] maxValue(char[][] currBoard, char currPlayer, int alpha, int beta, int level, int limit) {
-        Map<Integer, List<Integer>> legalMovesAndFlips = getLegalMovesAndFlips(currBoard, currPlayer);
-        if (legalMovesAndFlips.isEmpty() || level == limit) return new int[]{eval(currBoard, currPlayer, legalMovesAndFlips), -1};
+    private Number[] maxValue(char[][] currBoard, char currPlayer, Map<Integer, List<Integer>> currMovesAndFlips, double alpha, double beta, int level, int limit) {
+        if (currMovesAndFlips.isEmpty()) {
+            // terminal state
+            return getScore(currBoard) > 0 ? new Number[]{1d, -1} : new Number[]{0d, -1};
+        } else if (level == limit) {
+            // random evaluation
+            return new Number[]{eval(currBoard, currPlayer, currMovesAndFlips), -1};
+        }
 
-        int v = Integer.MIN_VALUE;
+        double v = -1d;
         int maxMove = -1;
-        for (Map.Entry<Integer, List<Integer>> entry : legalMovesAndFlips.entrySet()) {
+        for (Map.Entry<Integer, List<Integer>> entry : currMovesAndFlips.entrySet()) {
             Integer move = entry.getKey();
             List<Integer> flipLocs = entry.getValue();
             char[][] nextBoard = getNextBoard(currBoard, currPlayer, flipLocs);
-
             char nextPlayer = currPlayer == 'X' ? 'O' : 'X';
-            int nextV = minValue(nextBoard, nextPlayer, alpha, beta, level+1, limit)[0];
+            Map<Integer, List<Integer>> nextMovesAndFlips = getLegalMovesAndFlips(nextBoard, nextPlayer);
+
+            double nextV = nextMovesAndFlips.isEmpty() ?
+                    (double) maxValue(nextBoard, currPlayer, getLegalMovesAndFlips(nextBoard, currPlayer), alpha, beta, level+1, limit)[0] :
+                    (double) minValue(nextBoard, nextPlayer, nextMovesAndFlips, alpha, beta, level+1, limit)[0];
             if (nextV > v) {
                 v = nextV;
                 maxMove = move;
             }
-            if (v > beta) return new int[] {v, -1};
+            if (v >= beta) return new Number[] {v, -1};
             alpha = Math.max(alpha, v);
         }
 
-        return new int[]{v, maxMove};
+        return new Number[]{v, maxMove};
     }
 
-    private int[] minValue(char[][] currBoard, char currPlayer, int alpha, int beta, int level, int limit) {
-        Map<Integer, List<Integer>> legalMovesAndFlips = getLegalMovesAndFlips(currBoard, currPlayer);
-        if (legalMovesAndFlips.isEmpty() || level == limit) return new int[]{eval(currBoard, currPlayer, legalMovesAndFlips), -1};
+    private Number[] minValue(char[][] currBoard, char currPlayer, Map<Integer, List<Integer>> currMovesAndFlips, double alpha, double beta, int level, int limit) {
+        if (currMovesAndFlips.isEmpty()) {
+            // terminal state
+            return getScore(currBoard) > 0 ? new Number[]{1d, -1} : new Number[]{0d, -1};
+        } else if (level == limit) {
+            // random evaluation
+            return new Number[]{eval(currBoard, currPlayer, currMovesAndFlips), -1};
+        }
 
-        int v = Integer.MAX_VALUE;
+        double v = 2d;
         int minMove = -1;
-        for (Map.Entry<Integer, List<Integer>> entry : legalMovesAndFlips.entrySet()) {
+        for (Map.Entry<Integer, List<Integer>> entry : currMovesAndFlips.entrySet()) {
             Integer move = entry.getKey();
             List<Integer> flipLocs = entry.getValue();
             char[][] nextBoard = getNextBoard(currBoard, currPlayer, flipLocs);
-
             char nextPlayer = currPlayer == 'X' ? 'O' : 'X';
-            int nextV = maxValue(nextBoard, nextPlayer, alpha, beta, level+1, limit)[0];
+            Map<Integer, List<Integer>> nextMovesAndFlips = getLegalMovesAndFlips(nextBoard, nextPlayer);
+
+            double nextV = nextMovesAndFlips.isEmpty() ?
+                    (double) minValue(nextBoard, currPlayer, getLegalMovesAndFlips(nextBoard, currPlayer), alpha, beta, level+1, limit)[0] :
+                    (double) maxValue(nextBoard, nextPlayer, nextMovesAndFlips, alpha, beta, level+1, limit)[0];
             if (nextV < v) {
                 v = nextV;
                 minMove = move;
             }
-            if (v < alpha) return new int[] {v, -1};
+            if (v <= alpha) return new Number[] {v, -1};
             beta = Math.min(beta, v);
         }
 
-        return new int[]{v, minMove};
+        return new Number[]{v, minMove};
+    }
+
+    private static boolean existLegalMove(char[][] board, char player) {
+        boolean exist = false;
+        for (int y = 0; y < 12; y++) {
+            for (int x = 0; x < 12; x++) {
+                if (board[y][x] == '.') {
+                    for (int[] d : directions) {
+                        int row = y + d[0], col = x + d[1];
+                        boolean end = false;
+                        boolean containsAnother = false;
+
+                        while (row >= 0 && row < 12 && col >= 0 && col < 12) {
+                            if (board[row][col] == '.') break;
+                            else if (board[row][col] == player) {
+                                end = true;
+                                break;
+                            } else {
+                                containsAnother = true;
+                            }
+                            row += d[0];
+                            col += d[1];
+                        }
+
+                        if (end && containsAnother) {
+                            exist = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return exist;
     }
 
     private static List<Integer> getLegalMoves(char[][] board, char player) {
@@ -182,17 +233,12 @@ class Game {
         return newBoard;
     }
 
-    private int eval(char[][] board, char currPlayer, Map<Integer, List<Integer>> currMovesAndFlips) {
-        int[] scores = getScore(board);
-        int playerScore = scores[0], opScore = scores[1];
-
-        return playerScore - opScore;
-//        // game over
-//        char nextPlayer = currPlayer == 'O' ? 'X' : 'O';
-//        if (playerScore + opScore == 145 || currMovesAndFlips.isEmpty() && getLegalMoves(board, nextPlayer).isEmpty()) return playerScore - opScore;
+    private double eval(char[][] board, char player, Map<Integer, List<Integer>> movesAndFlips) {
+        return new Random().nextDouble();
     }
 
-    private int[] getScore(char[][] board) {
+
+    private int getScore(char[][] board) {
         int numPlayer = player == 'X' ? 1 : 0;
         int numOp = 1 - numPlayer;
         for (int y = 0; y < 12; y++) {
@@ -202,14 +248,14 @@ class Game {
             }
         }
 
-        return new int[] {numPlayer, numOp};
+        return numPlayer - numOp;
     }
 
     private int calcLimit() {
         int maxSteps = countEmpty(board) / 2 + 1;
         double timePerStep = time_mine / maxSteps;
 //        int limit = 0;
-        int limit = 6;
+        int limit = searchTimes.length;
         for (double t : searchTimes) {
             if (t < timePerStep) break;
             limit--;
