@@ -1,7 +1,14 @@
-2.702
-0.444
-0.072
-0.013
-0.002
+max level: 7, expanded node number: 16671, total time: 0.179s, time per node: 1.0737208325835282E-5s
+0.179
+max level: 6, expanded node number: 3007, total time: 0.027s, time per node: 8.979048885932823E-6s
+0.027
+max level: 5, expanded node number: 1616, total time: 0.012s, time per node: 7.4257425742574256E-6s
+0.012
+max level: 4, expanded node number: 300, total time: 0.003s, time per node: 1.0E-5s
+0.003
+max level: 3, expanded node number: 139, total time: 0.001s, time per node: 7.194244604316547E-6s
+0.001
+max level: 2, expanded node number: 22, total time: 0.0s, time per node: 0.0s
 0.0
-0.0
+max level: 1, expanded node number: 7, total time: 0.001s, time per node: 1.4285714285714287E-4s
+0.001
